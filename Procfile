@@ -1,0 +1,1 @@
+web gunicorn ayadi.wsgi:application --log-file -
