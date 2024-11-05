@@ -115,8 +115,8 @@
 
 
 import React, { useState } from 'react';
-import { mariviPayment } from '../api';
-import logo from '../assets/ayadi-logo.jpeg'; // Assurez-vous d'avoir le logo dans src/assets
+import { paymentMarivi } from '../apis/walletService';
+import logo from '../assets/ayadi-logo.jpeg';
 
 const MariviWalletForm = () => {
   const [formData, setFormData] = useState({
@@ -125,17 +125,36 @@ const MariviWalletForm = () => {
     amount: '',
   });
   const [loading, setLoading] = useState(false);
+  const [transactionCode, setTransactionCode] = useState(null); // État pour stocker le code de transaction
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setTransactionCode(null); // Réinitialise le code de transaction
+
+    // Préparation des données pour l'API Marivi
+    const paymentData = {
+      currency_code: formData.currencyCode,  // Utilise le code devise défini dans formData
+      description: formData.description,
+      amount: parseFloat(formData.amount),
+    };
+
     try {
-      await mariviPayment(formData);
+      const response = await paymentMarivi(paymentData);
+      setTransactionCode(response); // Enregistre la réponse si c'est un code de transaction
       alert('Merci pour votre don !');
     } catch (error) {
       alert('Erreur lors du traitement du don.');
+      console.error("Erreur lors de l'exécution du paiement avec Marivi :", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (transactionCode) {
+      navigator.clipboard.writeText(transactionCode);
+      alert('Code de transaction copié dans le presse-papiers');
     }
   };
 
@@ -161,9 +180,9 @@ const MariviWalletForm = () => {
           </div>
         </div>
 
-        {/* Section droite - Formulaire de don */}
+        {/* Section droite - Formulaire de don Marivi */}
         <div className="w-1/2 bg-white p-8">
-          <h2 className="text-xl font-semibold mb-6">Formulaire de Don Ayadi Mouhsinin</h2>
+          <h2 className="text-xl font-semibold mb-6">Formulaire de Don Marivi</h2>
 
           <form onSubmit={handleSubmit}>
             <div className="relative mb-6">

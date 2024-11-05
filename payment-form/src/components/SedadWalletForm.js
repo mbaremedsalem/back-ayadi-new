@@ -1,6 +1,6 @@
-// import React, { useState } from 'react';
-// import { sedadPayment } from '../api';
-// import logo from '../assets/ayadi-logo.jpeg'; // Assurez-vous d'avoir le logo dans src/assets
+// import React, { useState, useEffect } from 'react';
+// import { getWallets, makePayment } from '../apis/walletService';
+// import logo from '../assets/ayadi-logo.jpeg';
 
 // const SedadWalletForm = () => {
 //   const [formData, setFormData] = useState({
@@ -10,20 +10,67 @@
 //     option: '',
 //     amount: '',
 //   });
+//   const [wallets, setWallets] = useState([]); // État pour stocker les wallets
 //   const [loading, setLoading] = useState(false);
+
+//   // Récupérer les wallets au chargement du composant
+//   useEffect(() => {
+//     const fetchWallets = async () => {
+//       try {
+//         const response = await getWallets();
+//         if (response.status === 200 && Array.isArray(response.data)) {
+//           setWallets(response.data); // Stocke les wallets si c'est un tableau
+//         } else {
+//           console.error("Les wallets récupérés ne sont pas un tableau :", response);
+//           setWallets([]); // Définit un tableau vide si la réponse est incorrecte
+//         }
+//       } catch (error) {
+//         console.error("Erreur lors de la récupération des wallets :", error);
+//         setWallets([]);
+//       }
+//     };
+    
+//     fetchWallets();
+//   }, []);
 
 //   const handleSubmit = async (e) => {
 //     e.preventDefault();
 //     setLoading(true);
+  
+//     // Vérification que les champs requis sont remplis
+//     if (!formData.firstName || !formData.lastName || !formData.amount || !formData.option) {
+//       alert("Veuillez remplir le nom, prénom, montant, et option.");
+//       setLoading(false);
+//       return;
+//     }
+  
+//     const paymentData = {
+//       montant: parseFloat(formData.amount),           // Utilisation du champ attendu 'montant'
+//       nom_payeur: formData.firstName,                 // Utilisation du champ attendu 'nom_payeur'
+//       prenom_payeur: formData.lastName,               // Utilisation du champ attendu 'prenom_payeur'
+//       telephone_payeur: formData.phone || "",         // Ajoutez un champ de téléphone si disponible
+//       code_abonnement: formData.option,               // Utilisation du champ attendu 'code_abonnement'
+//       remarque: formData.remarks || "",               // Utilisation du champ attendu 'remarque'
+//     };
+  
+//     console.log("Données envoyées pour le paiement:", paymentData);
+  
 //     try {
-//       await sedadPayment(formData);
-//       alert('Merci pour votre don !');
+//       const response = await makePayment(paymentData);
+//       alert('Merci pour votre don ! Réponse de l\'API: ' + response);
 //     } catch (error) {
-//       alert('Erreur lors du traitement du don.');
+//       if (error.response) {
+//         console.error("Erreur lors de l'exécution du paiement :", error.response.data);
+//         alert('Erreur lors du traitement du don: ' + error.response.data.error);
+//       } else {
+//         console.error("Erreur lors de l'exécution du paiement :", error);
+//       }
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
+  
+  
 
 //   return (
 //     <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -94,7 +141,7 @@
 //               </label>
 //             </div>
 
-//             {/* Menu déroulant */}
+//             {/* Menu déroulant pour les wallets */}
 //             <div className="relative mb-6">
 //               <select
 //                 value={formData.option}
@@ -102,9 +149,11 @@
 //                 className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
 //               >
 //                 <option value="">Choisissez une option</option>
-//                 <option value="option1">Option 1</option>
-//                 <option value="option2">Option 2</option>
-//                 <option value="option3">Option 3</option>
+//                 {Array.isArray(wallets) && wallets.map((wallet, index) => (
+//                   <option key={index} value={wallet.code_abonnement}>
+//                     {wallet.moyen_paiement} - {wallet.phone}
+//                   </option>
+//                 ))}
 //               </select>
 //             </div>
 
@@ -151,17 +200,23 @@ const SedadWalletForm = () => {
     option: '',
     amount: '',
   });
-  const [wallets, setWallets] = useState([]); // État pour stocker les wallets
+  const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [paymentCode, setPaymentCode] = useState(null); // État pour stocker le code de paiement
 
-  // Récupérer les wallets au chargement du composant
   useEffect(() => {
     const fetchWallets = async () => {
       try {
-        const data = await getWallets();
-        setWallets(data); // Stocke les wallets récupérés dans l'état
+        const response = await getWallets();
+        if (response.status === 200 && Array.isArray(response.data)) {
+          setWallets(response.data);
+        } else {
+          console.error("Les wallets récupérés ne sont pas un tableau :", response);
+          setWallets([]);
+        }
       } catch (error) {
         console.error("Erreur lors de la récupération des wallets :", error);
+        setWallets([]);
       }
     };
     
@@ -171,23 +226,41 @@ const SedadWalletForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+    setPaymentCode(null); // Réinitialise le code de paiement
+
     const paymentData = {
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      remarks: formData.remarks,
-      option: formData.option,
-      amount: formData.amount,
+      montant: parseFloat(formData.amount),
+      nom_payeur: formData.firstName,
+      prenom_payeur: formData.lastName,
+      telephone_payeur: formData.phone || "",
+      code_abonnement: formData.option,
+      remarque: formData.remarks || "",
     };
 
     try {
       const response = await makePayment(paymentData);
-      alert('Merci pour votre don ! Réponse de l\'API: ' + response);
+      if (response.status === 200 && response.data && response.data.code_paiement) {
+        setPaymentCode(response.data.code_paiement); // Enregistre le code de paiement
+        alert('Merci pour votre don !');
+      } else {
+        alert('Paiement réussi, mais aucun code de paiement reçu.');
+      }
     } catch (error) {
-      alert('Erreur lors du traitement du don.');
-      console.error('Erreur:', error);
+      if (error.response) {
+        console.error("Erreur lors de l'exécution du paiement :", error.response.data);
+        alert('Erreur lors du traitement du don: ' + error.response.data.error);
+      } else {
+        console.error("Erreur lors de l'exécution du paiement :", error);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (paymentCode) {
+      navigator.clipboard.writeText(paymentCode);
+      alert('Code de paiement copié dans le presse-papiers');
     }
   };
 
@@ -268,8 +341,10 @@ const SedadWalletForm = () => {
                 className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
               >
                 <option value="">Choisissez une option</option>
-                {wallets.map((wallet, index) => (
-                  <option key={index} value={wallet.id}>{wallet.name}</option>
+                {Array.isArray(wallets) && wallets.map((wallet, index) => (
+                  <option key={index} value={wallet.code_abonnement}>
+                    {wallet.moyen_paiement} - {wallet.phone}
+                  </option>
                 ))}
               </select>
             </div>
@@ -295,6 +370,19 @@ const SedadWalletForm = () => {
               {loading ? 'En cours...' : 'Faire un don'}
             </button>
           </form>
+
+          {/* Affichage du code de paiement avec option de copie */}
+          {paymentCode && (
+            <div className="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-lg text-center">
+              <p className="mb-4">Votre code de paiement : <strong>{paymentCode}</strong></p>
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-900 text-white py-2 px-4 rounded-lg hover:bg-blue-1000 transition duration-300"
+              >
+                Copier le code
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
